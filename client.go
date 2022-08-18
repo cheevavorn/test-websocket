@@ -6,7 +6,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -35,6 +37,7 @@ var (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -56,6 +59,7 @@ type Client struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		fmt.Println("connection closed")
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -63,6 +67,7 @@ func (c *Client) readPump() {
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.conn.ReadMessage()
+		// TODO: Unmarshel string to struct
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
@@ -71,6 +76,8 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.hub.broadcast <- message
+
+		// TODO: Update data to gorm
 	}
 }
 
@@ -86,8 +93,10 @@ func (c *Client) writePump() {
 		c.conn.Close()
 	}()
 	for {
+		// event listening from client.send channel and sent to other client
 		select {
 		case message, ok := <-c.send:
+			fmt.Printf("Broadcast message: %s\n", message)
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
