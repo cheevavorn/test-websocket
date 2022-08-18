@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>WebSocket</title>
+</head>
+
+<body>
+  <p id="output"></p>
+  <button style="display: none;" onclick="ws.send(JSON.stringify({ 'a': 1, 'b': true, c: ++count }))">Emit data</button>
+  <script>
+    var count = 0;
+    var button = document.querySelector("button");
+    var loc = window.location;
+    var uri = 'ws:';
+
+    if (loc.protocol === 'https:') {
+      uri = 'wss:';
+    }
+    uri += '//' + loc.host;
+    uri += loc.pathname + 'ws';
+
+    ws = new WebSocket(uri)
+
+    ws.onopen = function() {
+      console.log('Connected on', uri)
+      setTimeout(()=>{
+        button.style.display = "block";
+      }, 800)
+      
+    }
+
+    ws.onmessage = function(evt) {
+      var out = document.getElementById('output');
+      out.innerHTML += evt.data + '<br>';
+    }
+
+    ws.onerror = function(error) {
+      button.style.display = "none";
+      console.log("ws error",error);
+    }
+
+    ws.onclose = function(event) {
+      button.style.display = "none";
+      console.log("ws onclose",event);
+    }
+
+    // ตั้งเวลาส่งค่ากลับจาก Client ไปยัง Server ด้วยข้อความ "Hello, Server!"
+    // setInterval(function() {
+    //   ws.send();
+    // }, 1000);
+  </script>
+</body>
+
+</html>
